@@ -116,6 +116,7 @@ if uploaded_file is not None:
         file_content_bytes = uploaded_file.getvalue()
         file_extension = uploaded_file.name.split('.')[-1].lower()
 
+        # ... (logika ekstraksi teks untuk berbagai tipe file tetap sama) ...
         if file_extension == "txt" or uploaded_file.type == "text/plain" or file_extension == "md" or uploaded_file.type == "text/markdown":
             extracted_text = file_content_bytes.decode("utf-8", errors="replace")
             file_processed_successfully = True
@@ -168,21 +169,25 @@ if uploaded_file is not None:
 
 
         if file_processed_successfully and extracted_text.strip():
-            st.session_state.uploaded_file_content = extracted_text
-            user_upload_message = f"Saya telah mengunggah file: '{st.session_state.uploaded_file_name}'. Mohon gunakan konteks dari file ini untuk pertanyaan saya selanjutnya."
-            assistant_ack_message = f"Baik, saya telah menerima file '{st.session_state.uploaded_file_name}'. Silakan ajukan pertanyaan Anda terkait dokumen ini."
+            st.session_state.uploaded_file_content = extracted_text # Konten file tetap disimpan
             
-            # Hindari duplikasi pesan konfirmasi upload jika sudah ada
-            last_user_message = st.session_state.messages[-2]['content'] if len(st.session_state.messages) > 1 else None
-            last_assistant_message = st.session_state.messages[-1]['content'] if st.session_state.messages else None
+            # Pesan-pesan ini yang ingin Anda hilangkan
+            # user_upload_message = f"Saya telah mengunggah file: '{st.session_state.uploaded_file_name}'. Mohon gunakan konteks dari file ini untuk pertanyaan saya selanjutnya."
+            # assistant_ack_message = f"Baik, saya telah menerima file '{st.session_state.uploaded_file_name}'. Silakan ajukan pertanyaan Anda terkait dokumen ini."
             
-            if not (last_user_message == user_upload_message and last_assistant_message == assistant_ack_message):
-                st.session_state.messages.append({"role": "user", "content": user_upload_message})
-                st.session_state.messages.append({"role": "assistant", "content": assistant_ack_message})
-                # Pertimbangkan untuk tidak menggunakan rerun di sini kecuali benar-benar perlu
-                # karena bisa menyebabkan re-upload atau reset state yang tidak diinginkan.
-                # Jika ingin langsung refresh chat, cukup biarkan script berjalan hingga akhir.
-                # st.rerun()
+            # Hapus atau komentari bagian 'append' pesan ke session_state
+            # last_user_message = st.session_state.messages[-2]['content'] if len(st.session_state.messages) > 1 else None
+            # last_assistant_message = st.session_state.messages[-1]['content'] if st.session_state.messages else None
+            
+            # if not (last_user_message == user_upload_message and last_assistant_message == assistant_ack_message):
+                # st.session_state.messages.append({"role": "user", "content": user_upload_message}) # <-- KOMENTARI BARIS INI
+                # st.session_state.messages.append({"role": "assistant", "content": assistant_ack_message}) # <-- KOMENTARI BARIS INI
+                # st.rerun() # Hati-hati dengan rerun, mungkin tidak diperlukan lagi jika pesan tidak ditambahkan
+            
+            # Sebagai gantinya, Anda mungkin ingin memberikan notifikasi singkat bahwa file berhasil diproses
+            # Ini opsional, bisa menggunakan st.toast atau st.success
+            st.toast(f"File '{st.session_state.uploaded_file_name}' berhasil diproses dan siap digunakan.", icon="✅")
+
         elif file_processed_successfully and not extracted_text.strip():
             st.info(f"File '{st.session_state.uploaded_file_name}' berhasil diproses tetapi tidak ditemukan konten teks yang bisa diekstrak.")
             st.session_state.uploaded_file_content = None
