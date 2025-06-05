@@ -39,7 +39,7 @@ api_key = st.secrets.get("OPENROUTER_API_KEY", None)
 client = None
 if api_key:
     client = OpenAI(
-        base_url="https://openrouter.ai/api/v1",
+        base_url="https://api.deepseek.com/v1",
         api_key=api_key,
     )
 else:
@@ -225,7 +225,7 @@ if user_prompt and client:
 
 
             completion = client.chat.completions.create(
-                model="deepseek/deepseek-r1-0528:free", # Ganti dengan model pilihan Anda jika perlu
+                model="deepseek-reasoner", # Ganti dengan model pilihan Anda jika perlu
                 messages=payload_messages,
                 stream=True,
             )
