@@ -33,13 +33,13 @@ st.set_page_config(
 )
 
 # --- Secrets Management ---
-api_key = st.secrets.get("DEEPSEEK_API_KEY", None)
+api_key = st.secrets.get("OPENROUTER_API_KEY", None)
 
 # --- OpenAI Client Initialization ---
 client = None
 if api_key:
     client = OpenAI(
-        base_url="https://api.deepseek.com/v1",
+        base_url="https://openrouter.ai/api/v1",
         api_key=api_key,
     )
 else:
@@ -166,23 +166,21 @@ if uploaded_file is not None:
         else:
             st.warning(f"Tipe file '{file_extension}' tidak didukung atau library yang dibutuhkan tidak terinstal.")
 
+        if file_processed_successfully and extracted_text.strip(): #
+            st.session_state.uploaded_file_content = extracted_text #
+            # st.session_state.uploaded_file_name sudah diatur sebelumnya saat file diunggah
 
-        if file_processed_successfully and extracted_text.strip():
-            st.session_state.uploaded_file_content = extracted_text
-            user_upload_message = f"Saya telah mengunggah file: '{st.session_state.uploaded_file_name}'. Mohon gunakan konteks dari file ini untuk pertanyaan saya selanjutnya."
-            assistant_ack_message = f"Baik, saya telah menerima file '{st.session_state.uploaded_file_name}'. Silakan ajukan pertanyaan Anda terkait dokumen ini."
+            # Pesan konfirmasi tidak lagi ditambahkan ke histori chat.
+            # Variabel user_upload_message dan assistant_ack_message bisa dihapus atau dikomentari.
+            # Logika untuk menghindari duplikasi (last_user_message, last_assistant_message, dan kondisinya)
+            # juga tidak diperlukan lagi untuk pesan-pesan ini.
+
+            # Anda bisa menambahkan notifikasi yang tidak masuk ke histori chat, misalnya:
+            st.info(f"File '{st.session_state.uploaded_file_name}' berhasil diproses. Konteksnya akan digunakan untuk pertanyaan Anda selanjutnya.")
             
-            # Hindari duplikasi pesan konfirmasi upload jika sudah ada
-            last_user_message = st.session_state.messages[-2]['content'] if len(st.session_state.messages) > 1 else None
-            last_assistant_message = st.session_state.messages[-1]['content'] if st.session_state.messages else None
-            
-            if not (last_user_message == user_upload_message and last_assistant_message == assistant_ack_message):
-                st.session_state.messages.append({"role": "user", "content": user_upload_message})
-                st.session_state.messages.append({"role": "assistant", "content": assistant_ack_message})
-                # Pertimbangkan untuk tidak menggunakan rerun di sini kecuali benar-benar perlu
-                # karena bisa menyebabkan re-upload atau reset state yang tidak diinginkan.
-                # Jika ingin langsung refresh chat, cukup biarkan script berjalan hingga akhir.
-                # st.rerun()
+            # Pastikan tidak ada st.rerun() yang dieksekusi di sini yang mungkin
+            # menyebabkan loop atau perilaku tak terduga lainnya terkait file upload.
+        
         elif file_processed_successfully and not extracted_text.strip():
             st.info(f"File '{st.session_state.uploaded_file_name}' berhasil diproses tetapi tidak ditemukan konten teks yang bisa diekstrak.")
             st.session_state.uploaded_file_content = None
@@ -199,36 +197,50 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # --- Chat Input and Logic ---
-user_prompt = st.chat_input("Ketik pesanmu untuk chatbot di sini...")
+user_prompt = st.chat_input("Ketik pesanmu untuk chatbot di sini...") #
 
-if user_prompt and client:
-    st.session_state.messages.append({"role": "user", "content": user_prompt})
-    with st.chat_message("user"):
-        st.markdown(user_prompt)
+if user_prompt and client: #
+    st.session_state.messages.append({"role": "user", "content": user_prompt}) #
+    with st.chat_message("user"): #
+        st.markdown(user_prompt) #
 
-    with st.chat_message("assistant"):
-        message_placeholder = st.empty()
-        full_response = ""
+    with st.chat_message("assistant"): #
+        message_placeholder = st.empty() #
+        full_response = "" #
         try:
-            payload_messages = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
-            # Jika ada konten file yang diunggah dan belum disertakan secara eksplisit dalam histori pesan
-            # (misalnya, jika Anda tidak ingin menambahkan pesan "Saya telah mengunggah file..."),
-            # Anda bisa menambahkannya ke payload di sini, misalnya sebagai pesan sistem.
-            # Namun, dengan pendekatan saat ini, konten file sudah diisyaratkan lewat pesan histori.
+            # Buat daftar pesan awal dari histori
+            payload_messages = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages] #
             
-            # Contoh jika ingin menambahkan konteks file secara eksplisit ke payload API
-            # (hati-hati dengan batasan token):
-            # if st.session_state.uploaded_file_content:
-            #     context_message = {"role": "system", "content": f"Konteks dari file '{st.session_state.uploaded_file_name}':\n{st.session_state.uploaded_file_content}"}
-            #     # Anda bisa memilih untuk menambahkannya di awal atau sebelum prompt pengguna terakhir
-            #     payload_messages.insert(0, context_message) # atau payload_messages.insert(len(payload_messages)-1, context_message)
+            # Tambahkan konteks file sebagai pesan sistem jika ada
+            if st.session_state.get("uploaded_file_content"):
+                context_system_message_content = (
+                    f"Anda memiliki akses ke konten dari file bernama '{st.session_state.uploaded_file_name}'. "
+                    "Berikut adalah kontennya:\n--- MULAI KONTEKS FILE ---\n"
+                    f"{st.session_state.uploaded_file_content}\n"
+                    "--- AKHIR KONTEKS FILE ---\n"
+                    "Jika pertanyaan pengguna berkaitan dengan informasi dalam file ini, gunakanlah konteks ini untuk menjawab. "
+                    "Jangan menyebutkan secara eksplisit bahwa Anda mengambil informasi dari file kecuali jika itu relevan dengan pertanyaan (misalnya, jika pengguna bertanya tentang file itu sendiri)."
+                )
+                
+                # Strategi: Sisipkan pesan sistem ini di awal payload,
+                # tapi hindari duplikasi jika pesan sistem yang sama persis sudah ada.
+                # Ini akan dikirim setiap kali pengguna mengirim pesan selama file_content ada.
+                # Perhatikan batasan token model Anda.
+                context_message = {"role": "system", "content": context_system_message_content}
+                
+                is_context_already_prepended = False
+                if payload_messages and payload_messages[0]["role"] == "system" and payload_messages[0]["content"] == context_system_message_content:
+                    is_context_already_prepended = True
+                
+                if not is_context_already_prepended:
+                    payload_messages.insert(0, context_message)
 
-
-            completion = client.chat.completions.create(
-                model="deepseek-reasoner", # Ganti dengan model pilihan Anda jika perlu
+            completion = client.chat.completions.create( #
+                model="deepseek/deepseek-r1-0528:free", # Ganti dengan model pilihan Anda jika perlu #
                 messages=payload_messages,
-                stream=True,
+                stream=True, #
             )
+            # ... (sisa kode untuk streaming response)
             for chunk in completion:
                 if chunk.choices[0].delta.content is not None:
                     full_response += chunk.choices[0].delta.content
