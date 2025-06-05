@@ -33,7 +33,7 @@ st.set_page_config(
 )
 
 # --- Secrets Management ---
-api_key = st.secrets.get("OPENROUTER_API_KEY", None)
+api_key = st.secrets.get("DEEPSEEK_API_KEY", None)
 
 # --- OpenAI Client Initialization ---
 client = None
