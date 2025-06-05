@@ -64,16 +64,6 @@ uploaded_file = None
 
 # --- Sidebar ---
 with st.sidebar:
-    st.header("Tentang Bot Ini")
-    st.markdown("""
-    Bot ini menggunakan model AI dari OpenRouter untuk membantu kebutuhan Anda.
-    Cukup ketik permintaanmu dan lihat hasilnya! 🐐🎉
-    """)
-    st.subheader("Model Digunakan:")
-    st.markdown("Deepseek R1 (via OpenRouter)")
-
-    st.markdown("---") # Tambahkan pemisah jika diinginkan sebelum uploader
-
     # --- File Uploader ---
     # Tambahkan tipe file yang didukung ke list
     supported_file_types = ["txt", "md", "pdf"]
@@ -104,6 +94,14 @@ with st.sidebar:
         # uploaded_file = None # Ini tidak akan mereset widget file_uploader secara langsung
         st.rerun()
 
+    st.markdown("---")
+    st.header("Tentang Bot Ini")
+    st.markdown("""
+    Bot ini menggunakan model AI dari OpenRouter untuk membantu kebutuhan Anda.
+    Cukup ketik permintaanmu dan lihat hasilnya! 🐐🎉
+    """)
+    st.subheader("Model Digunakan:")
+    st.markdown("Deepseek R1 (via OpenRouter)")
     st.markdown("---")
     st.markdown("Dibuat oleh Mohammad Aris Darmawan")
 
