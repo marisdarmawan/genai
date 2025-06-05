@@ -27,8 +27,8 @@ except ImportError:
 
 # --- App Configuration ---
 st.set_page_config(
-    page_title="､�Chatbot Assistant",
-    page_icon="髄",
+    page_title="🤖 Chatbot Assistant",
+    page_icon="🐑",
     layout="centered",
 )
 
@@ -47,7 +47,7 @@ else:
 
 
 # --- UI Elements ---
-st.title("､�Chatbot Assistant")
+st.title("🤖 Chatbot Assistant")
 st.caption("Masukkan Pesan yang Anda Inginkan, atau unggah dokumen dari sidebar untuk dibahas.")
 
 if "messages" not in st.session_state:
@@ -67,7 +67,7 @@ with st.sidebar:
     st.header("Tentang Bot Ini")
     st.markdown("""
     Bot ini menggunakan model AI dari OpenRouter untuk membantu kebutuhan Anda.
-    Cukup ketik permintaanmu dan lihat hasilnya! 瑞脂
+    Cukup ketik permintaanmu dan lihat hasilnya! 🐐🎉
     """)
     st.subheader("Model Digunakan:")
     st.markdown("Deepseek R1 (via OpenRouter)")
@@ -234,11 +234,11 @@ if user_prompt and client:
             for chunk in completion:
                 if chunk.choices[0].delta.content is not None:
                     full_response += chunk.choices[0].delta.content
-                    message_placeholder.markdown(full_response + "笆�") # Karakter penanda ketik
+                    message_placeholder.markdown(full_response + "▌") # Karakter penanda ketik
             message_placeholder.markdown(full_response)
         except Exception as e:
             st.error(f"Oops! Terjadi kesalahan: {e}")
-            full_response = "Maaf, aku sedang tidak bisa membantumu saat ini. ･ｺ"
+            full_response = "Maaf, aku sedang tidak bisa membantumu saat ini. 🥺"
             message_placeholder.markdown(full_response)
 
     st.session_state.messages.append({"role": "assistant", "content": full_response})
