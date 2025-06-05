@@ -27,8 +27,8 @@ except ImportError:
 
 # --- App Configuration ---
 st.set_page_config(
-    page_title="🤖 Chatbot Assistant",
-    page_icon="🐑",
+    page_title="､�Chatbot Assistant",
+    page_icon="髄",
     layout="centered",
 )
 
@@ -47,8 +47,8 @@ else:
 
 
 # --- UI Elements ---
-st.title("🤖 Chatbot Assistant")
-st.caption("Masukkan Pesan yang Anda Inginkan, atau unggah dokumen untuk dibahas.")
+st.title("､�Chatbot Assistant")
+st.caption("Masukkan Pesan yang Anda Inginkan, atau unggah dokumen dari sidebar untuk dibahas.")
 
 if "messages" not in st.session_state:
     st.session_state.messages = [
@@ -59,23 +59,56 @@ if "uploaded_file_content" not in st.session_state:
 if "uploaded_file_name" not in st.session_state:
     st.session_state.uploaded_file_name = None
 
-# --- File Uploader ---
-# Tambahkan tipe file yang didukung ke list
-supported_file_types = ["txt", "md", "pdf"]
-if DocxDocument:
-    supported_file_types.extend(["docx", "doc"]) # doc mungkin perlu konversi atau library lain
-if Presentation:
-    supported_file_types.append("pptx")
-if pd:
-    supported_file_types.extend(["xlsx", "xls"])
+# Variabel untuk menyimpan hasil file uploader
+uploaded_file = None
+
+# --- Sidebar ---
+with st.sidebar:
+    st.header("Tentang Bot Ini")
+    st.markdown("""
+    Bot ini menggunakan model AI dari OpenRouter untuk membantu kebutuhan Anda.
+    Cukup ketik permintaanmu dan lihat hasilnya! 瑞脂
+    """)
+    st.subheader("Model Digunakan:")
+    st.markdown("Deepseek R1 (via OpenRouter)")
+
+    st.markdown("---") # Tambahkan pemisah jika diinginkan sebelum uploader
+
+    # --- File Uploader ---
+    # Tambahkan tipe file yang didukung ke list
+    supported_file_types = ["txt", "md", "pdf"]
+    if DocxDocument:
+        supported_file_types.extend(["docx", "doc"]) # doc mungkin perlu konversi atau library lain
+    if Presentation:
+        supported_file_types.append("pptx")
+    if pd:
+        supported_file_types.extend(["xlsx", "xls"])
+
+    uploaded_file = st.file_uploader( # Pindahkan widget ke sini
+        f"Unggah dokumen (opsional, .{', .'.join(supported_file_types)})",
+        type=supported_file_types,
+        help="Unggah file untuk dibahas dengan chatbot."
+    )
+
+    st.markdown("---")
+    if st.button("Mulai Percakapan Baru"):
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Hai! Silahkan ketik pesanmu di sini!"}
+        ]
+        st.session_state.uploaded_file_content = None
+        st.session_state.uploaded_file_name = None
+        # Untuk mereset file uploader, kita perlu memanipulasi kunci widgetnya jika ingin
+        # membersihkannya secara programmatic setelah tombol ini ditekan.
+        # Cara paling mudah adalah dengan st.experimental_rerun() atau st.rerun()
+        # yang akan merender ulang seluruh aplikasi, termasuk file uploader ke state awalnya.
+        # uploaded_file = None # Ini tidak akan mereset widget file_uploader secara langsung
+        st.rerun()
+
+    st.markdown("---")
+    st.markdown("Dibuat oleh Mohammad Aris Darmawan")
 
 
-uploaded_file = st.file_uploader(
-    f"Unggah dokumen (opsional, .{', .'.join(supported_file_types)})",
-    type=supported_file_types,
-    help="Unggah file untuk dibahas dengan chatbot."
-)
-
+# --- File Processing Logic (tetap di main script, setelah sidebar didefinisikan) ---
 if uploaded_file is not None:
     st.session_state.uploaded_file_name = uploaded_file.name
     extracted_text = ""
@@ -97,13 +130,11 @@ if uploaded_file is not None:
             except Exception as e:
                 st.error(f"Gagal membaca file PDF: {e}")
         elif (file_extension == "docx" or file_extension == "doc") and DocxDocument:
-            # Untuk .doc mungkin perlu pendekatan berbeda atau konversi, .docx lebih mudah
             if file_extension == "docx":
                 try:
                     doc = DocxDocument(io.BytesIO(file_content_bytes))
                     for para in doc.paragraphs:
                         extracted_text += para.text + "\n"
-                    # Anda juga bisa mencoba mengekstrak teks dari tabel jika perlu
                     for table in doc.tables:
                         for row in table.rows:
                             for cell in row.cells:
@@ -126,12 +157,9 @@ if uploaded_file is not None:
                 st.error(f"Gagal membaca file PPTX: {e}")
         elif (file_extension == "xlsx" or file_extension == "xls") and pd:
             try:
-                # Membaca semua sheet dan menggabungkan teksnya
                 xls_file = pd.ExcelFile(io.BytesIO(file_content_bytes))
                 for sheet_name in xls_file.sheet_names:
                     df = xls_file.parse(sheet_name)
-                    # Ubah seluruh dataframe menjadi string, ini mungkin perlu penyesuaian
-                    # tergantung bagaimana Anda ingin merepresentasikan data tabel.
                     extracted_text += f"--- Sheet: {sheet_name} ---\n"
                     extracted_text += df.to_string(index=False) + "\n\n"
                 file_processed_successfully = True
@@ -146,25 +174,26 @@ if uploaded_file is not None:
             user_upload_message = f"Saya telah mengunggah file: '{st.session_state.uploaded_file_name}'. Mohon gunakan konteks dari file ini untuk pertanyaan saya selanjutnya."
             assistant_ack_message = f"Baik, saya telah menerima file '{st.session_state.uploaded_file_name}'. Silakan ajukan pertanyaan Anda terkait dokumen ini."
             
-            current_messages_tuple = tuple(m['content'] for m in st.session_state.messages)
-            if user_upload_message not in current_messages_tuple and assistant_ack_message not in current_messages_tuple:
+            # Hindari duplikasi pesan konfirmasi upload jika sudah ada
+            last_user_message = st.session_state.messages[-2]['content'] if len(st.session_state.messages) > 1 else None
+            last_assistant_message = st.session_state.messages[-1]['content'] if st.session_state.messages else None
+            
+            if not (last_user_message == user_upload_message and last_assistant_message == assistant_ack_message):
                 st.session_state.messages.append({"role": "user", "content": user_upload_message})
                 st.session_state.messages.append({"role": "assistant", "content": assistant_ack_message})
-                # st.rerun() # Hati-hati dengan rerun, bisa menyebabkan re-upload jika state tidak dikelola baik
+                # Pertimbangkan untuk tidak menggunakan rerun di sini kecuali benar-benar perlu
+                # karena bisa menyebabkan re-upload atau reset state yang tidak diinginkan.
+                # Jika ingin langsung refresh chat, cukup biarkan script berjalan hingga akhir.
+                # st.rerun()
         elif file_processed_successfully and not extracted_text.strip():
             st.info(f"File '{st.session_state.uploaded_file_name}' berhasil diproses tetapi tidak ditemukan konten teks yang bisa diekstrak.")
             st.session_state.uploaded_file_content = None
-        elif not file_processed_successfully and uploaded_file: # Jika proses gagal tapi file ada
+        elif not file_processed_successfully and uploaded_file:
              st.session_state.uploaded_file_content = None
-
 
     except Exception as e:
         st.error(f"Terjadi kesalahan umum saat memproses file '{uploaded_file.name}': {e}")
         st.session_state.uploaded_file_content = None
-
-# (Sisa kode Anda: display messages, chat input, logic, sidebar, dll. tetap sama)
-# Pastikan untuk menyesuaikan bagian display messages dan chat input logic
-# jika Anda melakukan perubahan besar pada bagaimana pesan upload ditangani.
 
 # Display existing messages
 for message in st.session_state.messages:
@@ -183,55 +212,36 @@ if user_prompt and client:
         message_placeholder = st.empty()
         full_response = ""
         try:
-            # Membangun payload pesan untuk API
-            # Pastikan menyertakan histori yang relevan dan mungkin konteks file jika diperlukan secara eksplisit
             payload_messages = [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages]
+            # Jika ada konten file yang diunggah dan belum disertakan secara eksplisit dalam histori pesan
+            # (misalnya, jika Anda tidak ingin menambahkan pesan "Saya telah mengunggah file..."),
+            # Anda bisa menambahkannya ke payload di sini, misalnya sebagai pesan sistem.
+            # Namun, dengan pendekatan saat ini, konten file sudah diisyaratkan lewat pesan histori.
+            
+            # Contoh jika ingin menambahkan konteks file secara eksplisit ke payload API
+            # (hati-hati dengan batasan token):
+            # if st.session_state.uploaded_file_content:
+            #     context_message = {"role": "system", "content": f"Konteks dari file '{st.session_state.uploaded_file_name}':\n{st.session_state.uploaded_file_content}"}
+            #     # Anda bisa memilih untuk menambahkannya di awal atau sebelum prompt pengguna terakhir
+            #     payload_messages.insert(0, context_message) # atau payload_messages.insert(len(payload_messages)-1, context_message)
 
-            # Jika ada konten file yang sangat besar dan ingin diprioritaskan,
-            # Anda mungkin ingin menyisipkannya secara strategis, misal sebagai pesan sistem
-            # atau bagian dari prompt pengguna terbaru, tergantung batas token dan strategi Anda.
-            # Untuk saat ini, kita mengandalkan histori chat yang sudah mencakup pesan upload.
 
             completion = client.chat.completions.create(
-                model="deepseek/deepseek-r1-0528:free",
+                model="deepseek/deepseek-r1-0528:free", # Ganti dengan model pilihan Anda jika perlu
                 messages=payload_messages,
                 stream=True,
             )
             for chunk in completion:
                 if chunk.choices[0].delta.content is not None:
                     full_response += chunk.choices[0].delta.content
-                    message_placeholder.markdown(full_response + "▌")
+                    message_placeholder.markdown(full_response + "笆�") # Karakter penanda ketik
             message_placeholder.markdown(full_response)
         except Exception as e:
             st.error(f"Oops! Terjadi kesalahan: {e}")
-            full_response = "Maaf, aku sedang tidak bisa membantumu saat ini. 🥺"
+            full_response = "Maaf, aku sedang tidak bisa membantumu saat ini. ･ｺ"
             message_placeholder.markdown(full_response)
 
     st.session_state.messages.append({"role": "assistant", "content": full_response})
 
 elif not client and user_prompt:
     st.warning("Chatbot tidak aktif karena API Key belum dikonfigurasi dengan benar.")
-
-
-# --- Sidebar ---
-with st.sidebar:
-    st.header("Tentang Bot Ini")
-    st.markdown("""
-    Bot ini menggunakan model AI dari OpenRouter untuk membantu kebutuhan Anda.
-    Cukup ketik permintaanmu dan lihat hasilnya! 🐐🎉
-    """)
-    st.subheader("Model Digunakan:")
-    st.markdown("Deepseek R1 (via OpenRouter)")
-
-    st.markdown("---")
-    if st.button("Mulai Percakapan Baru"):
-        st.session_state.messages = [
-            {"role": "assistant", "content": "Hai! Silahkan ketik pesanmu di sini!"}
-        ]
-        st.session_state.uploaded_file_content = None
-        st.session_state.uploaded_file_name = None
-        # uploaded_file = None # Ini tidak akan mereset widget file_uploader secara langsung
-        st.rerun()
-
-    st.markdown("---")
-    st.markdown("Dibuat oleh Mohammad Aris Darmawan")
